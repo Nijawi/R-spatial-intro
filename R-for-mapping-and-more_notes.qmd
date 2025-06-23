@@ -1,5 +1,5 @@
 ---
-title: "R for mapping and more"
+title: "An Introduction to R Spatial"
 format: html
 #project:
  # type: website
@@ -12,14 +12,10 @@ toc-location: left
 toc-title: Content
 toc-depth: 4
 published-title: Date
-date: 2023-11-23
+date: 2025-07-03
 editor: visual
 embed-resources: true
 ---
-
-```{=html}
-<iframe class="slide-deck" src="https://rspatial-intro-slides.netlify.app/"width=790 height=500 data-external="1"></iframe> 
-```
 
 ### Using R for mapping and spatial data science
 
@@ -27,8 +23,8 @@ embed-resources: true
 
 -   Reproducibility
 -   Collaboration
--   Flexibility
--   Automation
+-   Flexibility and Custom Exports
+-   Automation and Data Pipelines
 -   Big data
 
 #### What you'll learn in these notes
@@ -95,7 +91,7 @@ Often you'll want to use vector and raster data together, e.g., calculating aver
 
 #### Coordinate reference systems
 
-Coordinate reference systems are at the heart of how we make data spatial. They tell us how the coordinates of our data *refer* to, a.k.a *map* to, the earth. There are two main types: Geographic coordinate reference systems (GCS) and Projected coordinate reference systems (PCS).
+Coordinate reference systems are at the heart of how we make data spatial. They tell us how the coordinates of our data *refer* to, a.k.a *map* to, the earth. There are two main types: Geographic Coordinate reference Systems (GCS) and Projected Coordinate reference Systems (PCS).
 
 ![Figure1.](images/Fig2.png)
 
