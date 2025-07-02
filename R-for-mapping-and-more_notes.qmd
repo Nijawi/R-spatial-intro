@@ -47,6 +47,8 @@ Install the following packages:
 
 `install.packages('sf', 'tidyverse', 'tmap', 'dplyr', 'readr', 'ggplot2', 'forcats', 'units', 'Polychrome')`
 
+[Download the data for this session](https://filesender.aarnet.edu.au/?s=download&token=1b3c37b1-cbeb-4818-b0ed-faeb529a6d26).
+
 **A quick note on mastering Rspatial**
 
 A good way to start getting used to a new R package is to read any [vignettes](https://r-pkgs.org/vignettes.html) that are available, and to read the documentation associated with functions that you'd like to use.
