@@ -45,7 +45,8 @@ Install [R](https://www.r-project.org/) and [RStudio](https://www.rstudio.com/pr
 
 Install the following packages:
 
-`install.packages('sf', 'terra', 'tidyverse', 'tmap', 'tmaptools', 'cowplot')`
+`install.packages('sf', 'terra', 'tidyverse', 'tmap', 'dplyr', 'readr', 'ggplot2', 'forcats', 'units', 'Polychrome', 'tmaptools', 'cowplot')`
+
 
 **A quick note on mastering Rspatial**
 
@@ -142,7 +143,7 @@ Packages for spatial data have been around since the release of R in the year 20
 
 #### My basic set-up
 
-1.  Make an analysis folder on cloud storage of choice (e.g., dropbox). Call it something meaningful, e.g., 'bird-analysis'
+1.  Make an analysis folder on cloud storage of choice (e.g., dropbox). Call it something meaningful, e.g., 'echidna-analysis'
 2.  Add 3 folders nested inside the analysis folder: 'scripts', 'data', 'outputs'
 3.  Open Rstudio, File -\> New Project -\> Existing Directory -\> browse for analysis folder created in step 1 and open
 4.  Move spatial data files into the nested 'data' folder created in Step 2
@@ -173,7 +174,7 @@ The first step of any data wrangling or analysis is usually getting the data int
 
 If you've used R before for wrangling non-spatial data, such as with the packages `dplyr` and `tidyr`, you're in luck - we can use them to wrangle our spatial data too!
 
-Our spatial data consists of camera sites, property boundaries, broad vegetation groups and climate data. What type of spatial data do you suspect these will be (vector or raster)?
+Our spatial data consists of echidna sightings from [ALA](https://bie.ala.org.au/species/https://biodiversity.org.au/afd/taxa/0d4c9c0c-51d3-44e0-a365-fe0f8b791c66), electorate data from [the AEC](https://www.aec.gov.au/electorates/gis/gis_datadownload.htm), and broad vegetation groups from [QSpatial](https://qldspatial.information.qld.gov.au/catalogue/custom/detail.page?fid={43A2CB31-9D83-4BB9-ACE7-05E7BD271FE3}). What type of spatial data do you suspect these will be (vector or raster)?
 
 #### Using `sf` to read in vector data
 
@@ -185,61 +186,55 @@ First we need to load the package using the `library` function. You can think of
 library(sf)
 ```
 
-Read in the camera sites.
+Read in the electorate boundaries.
 
 ```{r}
-cam <- st_read('data/Camera_sites.shp')
+elec <- st_read('data/E_AUGEC_region.shp')
 ```
 
-You should now see an object in your RStudio environment called 'cam'. This is a simple features dataframe, which is essentially a dataframe with a geometry column (storing the coordinates for each observation, in this case each observation is a camera site).
+You should now see an object in your RStudio environment called 'elec'. This is a simple features dataframe, which is essentially a dataframe with a geometry column (storing the coordinates for each observation, in this case each observation is a federal electorate in QLD).
 
-The output in the console gives us some extra information about 'cam'. It has 60 features (rows/sites) and 4 fields (attributes/variables). But, in the Rstudio environment it says there are 5 variables. Why is this?
+The output in the console gives us some extra information about 'elec'. It has 30 features (rows/sites) and 10 fields (attributes/variables).
 
-The metadata also tells us that the geometry type is 'point', there are three dimensions (x,y, and z - but note z values are all 0), the bounding box (min and max x and y coordinates of all the spatial data points), and the projected coordinate reference system (CRS).
+The metadata also tells us that the geometry type is 'multipolygon', there are two dimensions (x, and y), the bounding box (min and max x and y coordinates of all the spatial data points), and the projected coordinate reference system (CRS).
 
 Before we start wrangling, we might like to get even more familiar with the structure of the spatial data. Here are a few handy functions for doing that.
 
 Check the class of the R object. Confirm it is a simple feature (sf) dataframe.
 
 ```{r}
-class(cam)
+class(elec)
 ```
 
 Check the structure of the spatial dataframe.
 
 ```{r}
-str(cam)
+str(elec)
 ```
 
 See the first six rows.
 
 ```{r}
-head(cam)
+head(elec)
 ```
 
 Get the column names.
 
 ```{r}
-colnames(cam)
-```
-
-Since the z dimension (which could be something like altitude) contains all 0s, we can remove it.
-
-```{r}
-cam <- st_zm(cam)
+colnames(elec)
 ```
 
 **A brief note about file formats**
 
 There are many different types of spatial [file storage formats](https://geocompr.robinlovelace.net/read-write.html?q=file#file-formats).
 
-If you work alot in ArcGIS, you'll probably want to stick with shapefiles (.shp) for vector data. But if you think you can get away with doing everything in R (hopefully after this workshop you will!), I highly recommend using geopackages. They are more compressed and only have one file (shapefiles tend to have \~5), so they're easier to manage and send to collaborators. They also don't place character length limits on attribute names.
+If you work a lot in ArcGIS, you'll probably want to stick with shapefiles (.shp) for vector data. But if you think you can get away with doing everything in R (hopefully after this workshop you will!), I highly recommend using geopackages. They are more compressed and only have one file (shapefiles tend to have \~5), so they're easier to manage and send to collaborators. They also don't place character length limits on attribute names.
 
-It's easy to switch between file formats. Let save our camera sites as a geopackage, and then read it back in.
+It's easy to switch between file formats. Let save our electoral boundaries as a geopackage, and then read it back in.
 
 ```{r}
-st_write(cam, 'data/Camera_sites.gpkg', append = F)
-cam <- st_read('data/Camera_sites.gpkg')
+st_write(elec, 'data/E_AUGEC_region.gpkg', append = F)
+elec <- st_read('data/E_AUGEC_region.gpkg')
 ```
 
 #### Exploring with quick, interactive maps
@@ -255,137 +250,208 @@ First, let's do a 'quick thematic map' using the 'qtm' function from `tmap`.
 ```{r}
 library(tmap)
 tmap_mode('view')
-qtm(cam, basemap = "Esri.WorldTopoMap")
+qtm(elec, basemap = "Esri.WorldTopoMap")
 ```
 
 Looks good! Try clicking on when of the site locations and notice the pop-up windows. In other interactive mapping packages (e.g., `leaflet`) we need to write lots of extra code to get this kind of functionality. Here only 3 lines of code!!
 
+Today we're going to focus on the environment around the USC Moreton Bay Campus, so let's use some dplyr to filter for just this electorate: Dickson. This kind of boundary file is useful to have when you're honing down to a particular project area.
+
+```{r}
+library(dplyr)
+dickson <- elec |> 
+  filter(Elect_div == "Dickson")
+```
+
+**Note** You can use a *pipe* (`|>`) to link a dataframe to multiple functions (in this case just to filter). Piping can make your code easier to read, and more efficient to write by taking up less space.
+
 Let's read in some other site-relevant vector data and map it all together.
 
 ```{r}
-veg <- st_read('data/Broad_Veg_Groups.shp')
-property <- st_read('data/Property_boundaries.shp')
+library(readr)
+echidna_raw <- read_csv('data/echidna.csv')
+rbvg_raw <- st_read('data/rbvg.gpkg')
 ```
 
-Notice there are almost 400000 polygons in the 'veg' data. Mapping this many polygons could be a bit slow in R. Let's crop the vegetation data so that it matches the bounding box of our camera site data. This will probably reduce the number of polygons in the spatial dataframe, and make it easier to manage.
-
-We can use the 'st_crop' function from `sf`. Notice we also use the 'st_bbox' function to get the bounding box of our camera site data.
+You will notice that our echidna data is not a spatial data file, it's a csv! It also has a lot of variables. Data from these kinds of repositories are often messy. Let's tidy that up to keep just what is useful to us here.
 
 ```{r}
-#| error: true
-veg_crop <- st_crop(veg, st_bbox(cam))
-prop_crop <- st_crop(property, st_bbox(cam))
+echidna_tidy <- echidna_raw |> select('basisOfRecord',
+                                 'eventDate',
+                                 'samplingProtocol',
+                                 'locality',
+                                 'decimalLatitude',
+                                 'decimalLongitude',	
+                                 'geodeticDatum',
+                                 'coordinateUncertaintyInMeters',
+                                 'vernacularName',
+                                 'species')
+```                            
+
+Okay, our data is tidied, let's turn this dataframe into a spatial dataframe with st_as_sf. You will notice that our csv had decimalLatitude and decimalLongitude, we can use these as our coordinates. The ALA uses WGS84 as its CRS, which has the EPSG shortcode 4326.
+
+```{r}
+echidna_tidy <- echidna_tidy |> 
+st_as_sf(coords=c("decimalLongitude","decimalLatitude"),crs=4326)
 ```
 
+Let's hone our points down to only have echidna sightings within our area of interest.
+We can use the 'st_intersection' function from `sf`. 
+
+```{r}
+echidna <- st_intersection(echidna_tidy, dickson)
+```
 Ah-ha! Our first error. Unfortunately, errors are very, very common when doing things in R. But the more errors you encounter, the better you'll get at trouble-shooting them. 80% of coding is googling error messages I reckon.
 
 To get good at trouble-shooting errors, read the error message and try to infer what it is telling you. Some error messages aren't so hard to guess the problem, but others are much more cryptic. That's when googling comes in handy. I've found that trying over and over again to decipher error messages has paid off; it's gotten easier over time, and I don't have to ask google as much.
 
-This error message tells us that the coordinate reference systems (crs's) of our vegetation and camera data are not equal, i.e., are not the same. Our spatial data needs to be in the same projected crs to process and map together.
+This error message tells us that the coordinate reference systems (crs's) of our echidna and elec data are not equal, i.e., are not the same. Our spatial data needs to be in the same projected crs to process and map together.
 
-With `sf` we can easily project our vegetation data to be in the same crs as our camera data using the function st_transform. Notice we use the function st_crs to get the coordinate reference system of our camera site data.
+With `sf` we can easily project our echidna data to be in the same crs as our elec data using the function st_transform. Notice we use the function st_crs to get and check the coordinate reference system of our electorate data.
 
 ```{r}
-veg <- st_transform(veg, st_crs(cam))
-property <- st_transform(property, st_crs(cam))
-veg_crop <- st_crop(veg, st_bbox(cam))
-prop_crop <- st_crop(property, st_bbox(cam))
+st_crs(echidna_tidy)
+st_crs(dickson)
+st_crs(rbvg_raw)
+```
+
+It looks like our rbvg data is in the same CRS as our electorate data, we will just need to transform the echidna data before cropping.
+
+```{r}
+st_crs(dickson)
+echidna_tidy <- st_transform(echidna_tidy, st_crs(dickson))
+rbvg <- st_transform(rbvg_raw, st_crs(dickson))
+echidna <- st_intersection(echidna_tidy, dickson) |> 
+  mutate(ID = row_number()) # ID so we can more easily compare sites later
+rbvg_crop <- st_intersection(rbvg_raw, dickson)
 ```
 
 Now let's do a quick interactive map of all data layers.
 
 ```{r}
-qtm(prop_crop, 'NAME') + qtm(veg_crop, 'BVG1M') + qtm(cam)
+qtm(dickson) + qtm(rbvg_crop, 'bvg1m') + qtm(echidna)
 ```
 
 We'll learn more about how to make a static, publication-quality map with `tmap` later.
 
-#### Splitting and merging vector data
+For now you will notice that the colour of the rbvg looks a little off, and if you zoom in close enough, there are lines across some sections of the map. The first issue is flagged in the warning that qtm gave us, that we have too many variables to match the maximum for a fill colouring. The second is a rendering bug that occurs with interactive leaflet maps that have over 500 polygons.
 
-What if we only want to map sites with a specific value for the attribute 'FireHistor'? Note we can easily check what unique values are in an attribute with the base R 'unique' function.
+We can fix this by merging some of the same polygons together. For our purposes, we don't need individual non-remnant patches You can combine many polygons into one polygon with the st_union function. However, we want to combine ours by categories. Fortunately dplyr and sf continue to work in harmony here. If we use group_by and summarize, it will use st_union by group!
 
-```{r}
-unique(cam$FireHistor)
-```
-
-In R 'NA' means missing value. So there are some camera sites with missing values for 'FireHistor'. To remove those sites we can use our handy data wrangling package `dplyr`. The function 'filter' allows us to select for rows with specific values in our dataframe (either spatial or non-spatial, but in this case spatial).
-
-So let's try removing all the camera sites (or rows in our spatial dataframe) that have a missing value 'NA' in the spatial dataframe.
+We can also resolve the colour issue by using a custom colour palette for 36 colours using the Polychrome package. Realistically, we have too many categories, but this will do in a pinch.
 
 ```{r}
-library(dplyr)
-cam_nona <- filter(cam, !is.na(FireHistor))
-unique(cam_nona$FireHistor)
+rbvg <- rbvg_crop |>
+  group_by(bvg1m) |> 
+  summarize() 
+
+library(Polychrome)
+P36 = unname(createPalette(36,  c("#ff0000", "#00ff00", "#0000ff")))
+
+veg_map <- qtm(rbvg, col=NULL, 'bvg1m', fill.scale = tm_scale_categorical(n.max = 36, values = P36))
 ```
 
-No more NAs. And note in the Rstudio environment, the 'cam_nona' spatial dataframe only has nine observations (rows/sites) while the original 'cam' has 60. Let's have a look.
+You will notice that it looks a bit blocky when zoomed out. This is caused by polygon simplification, which is not the case when you zoom in.
 
-```{r}
-qtm(prop_crop, 'NAME') + qtm(veg_crop, 'BVG1M') + qtm(cam_nona)
-```
-
-Great, so we've successfully split a vector dataframe. What if we wanted to merge them back together? That's easy too, we just treat them like a normal dataframe and bind the rows (i.e., sites) together with the 'rbind' function.
-
-```{r}
-cam_merge <- rbind(filter(cam, is.na(FireHistor)), cam_nona)
-```
-
-Voila. Now we have our full spatial dataframe back. You can map it again to make sure if you like.
-
-**Note** in above code I nested a 'filter' within the 'rbind' to select for just the rows that have missing values in 'FireHistor'.
 
 #### Buffering, spatial joins, and intersections
 
-Perhaps we would like to count the number of different vegetation types within a 2km radius of each camera site. First we'll create the buffers using `sf`s 'st_buffer' function.
+Perhaps we would like to count the number of different vegetation types within a 500m radius of each echidna sighting. First we'll create the buffers using `sf`s 'st_buffer' function.
 
 ```{r}
-cam_buff <- st_buffer(cam, 2000)
-qtm(veg_crop, 'BVG1M') + qtm(cam_buff) + qtm(cam)
+echidna_buff <- st_buffer(echidna, 500)
+veg_map + qtm(echidna_buff)
 ```
 
-Looks good. Now we just need to 1) find out which vegetation polygons intersect with each of the camera site buffers, and 2) count up the unique vegetation types for each site.
+Looks good. Now we just need to 1) find out which vegetation polygons intersect with each of the echidna sighting buffers, and 2) count up the unique vegetation types for each site.
 
-For the first step we'll do a spatial join to find out where vegetation polygons and camera buffers intersect using the `sf` function 'st_join'.
+For the first step we'll do a spatial join to find out where vegetation polygons and echidna buffers intersect using the `sf` function 'st_join'.
 
 ```{r}
-cam_veg <- st_join(cam_buff, veg_crop)
-dim(cam_buff)
-dim(veg_crop)
-dim(cam_veg)
+echidna_veg <- st_join(echidna_buff, rbvg)
+dim(echidna_buff)
+dim(rbvg)
+dim(echidna_veg)
 ```
 
-Notice that our 'joined' spatial dataframe is longer and wider than our individual camera and veg dataframes. Let's take a look at what's happened.
+Notice that our 'joined' spatial dataframe is longer (more rows) and wider (more columns) than our individual echidna and veg dataframes. Let's take a look at what's happened.
 
 ```{r}
-head(cam_veg)
+head(echidna_veg)
 ```
 
-So the new joined dataframe has all of the attributes from the camera and vegetation data combined. Note also the row numbers on the left-hand side of the dataframe - '1, 1.1, 1.2, etc.'. This indicates that rows from the first dataframe that we provided to the 'st_join' function have been duplicated, and you can see the camera site attribute values are in fact repeated. What's happened is that a new row has been made for every vegetation polygon that intersects with a camera buffer.
+Our new joined dataframe has all of the attributes from the echidna and vegetation data combined. Note also the row numbers on the left-hand side of the dataframe - '1, 1.1, 1.2, etc.'. What's happened is that our sites have been duplicated where a new row has been made for every vegetation polygon that intersects with a echidna buffer.
 
-**Note** 'OBJECTID' was an attribute name common to both dataframes, and so 'OBJECTID' from the camera buffers became 'OBJECTID.x', and 'OBJECTID' from the vegetation polygons became 'OBJECTID.y'.
-
-Now all we need to do is count up the number of unique vegetation types that intersect with each camera site. We can do that like we would a normal dataframe in R, with `dplyr` package functions.
+To get a quick summary of our sightings, we can count up the number of unique vegetation types that intersect with each echidna sighting. We can do that like we would a normal dataframe in R, with `dplyr` package functions.
 
 ```{r}
-cam_veg_sum <- cam_veg %>% 
-  group_by(NAME) %>% # group by camera sites
-  summarise(veg_count = length(unique(BVG1M))) # count the number of unique vegetation types
-head(cam_veg_sum)
+echidna_veg_sum <- echidna_veg |> 
+  group_by(ID) |> # group by echidna sighting
+  summarise(veg_count = length(unique(bvg1m)), site_sum = sum(st_area(echidna_veg_sum))) # count the number of unique vegetation types
+head(echidna_veg_sum)
 ```
 
-**Note** Above we used a *pipe* (`%>%`) to apply multiple functions ('group_by' and 'summarise') to the 'cam_veg' dataframe. Piping can make your code more efficient to write by taking up less space.
 
-If you want to visually verify that the the summarise above worked as expected, just do an intersection of the first camera buffer with the vegetation data and map it. Based on the above, we expect to see 2 vegetation types.
+
+If you want to visually verify that the the summarise above worked as expected, just do an intersection of the first echidna buffer (ID==1) with the vegetation data and map it. Based on the above, we expect to see 4 vegetation types.
 
 ```{r}
-site1 <- filter(cam_buff, NAME == 'CSR 01') 
-site1_veg <- st_intersection(site1, veg_crop)
-qtm(site1_veg, 'BVG1M', basemap = "Esri.WorldTopoMap")
+site1 <- filter(echidna_buff, ID == '1') 
+site1_veg <- st_intersection(site1, rbvg)
+qtm(site1_veg, 'bvg1m', basemap = "Esri.WorldTopoMap")
 ```
 
 Perfect!
 
-Okay, now that we've learned how to explore vector data in R, let's get some raster data.
+We can also use our spatial data to calculate the area of vegetation types that are found where our echidna sightings occur. 
+
+```{r}
+echidna_veg_sites <- st_intersection(echidna_buff, rbvg)
+
+echidna_veg_sites$site_area <- st_area(echidna_veg_sites) #Take care of units
+
+echidna_area <- echidna_veg_sites |> 
+  group_by(bvg1m) |> 
+  summarise(site_sum = sum(site_area))
+
+head(echidna_area)
+```
+
+Here we have used some functions we previously explored to first cut out the intersections where the rbvg and echidna buffer overlap. We have used the st_area function to calculate area for the vegetation at each site. Then finally used a similar group_by and summarise process to calculate the total area for each vegetation type across all sites.
+
+We can now take this data and visualise it as we please.
+
+```{r}
+library(ggplot2)
+library(units)
+
+echidna_sum |> 
+  arrange(-site_sum) |> 
+  ggplot(aes(x= bvg1m, y=site_sum)) +
+  geom_col()
+```
+
+We need to use the units library to work with square metres.
+We can then tidy the graph to better present the data.
+
+```{r}
+echidna_sum |> 
+  arrange(-site_sum) |> 
+  ggplot(aes(x= forcats::fct_reorder(bvg1m, desc(site_sum)), y=site_sum)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+    labs(title = "Area of Vegetation Types around Echidna Sightings",
+         x = "Vegetation Type",
+         y = "Total Area")
+```
+
+
+Now that you have learned to explore vector data in R, your next step is to learn to use raster data. You can find that in the original version of [this tutorial by Christina Buelow](https://r-spatial-intro.netlify.app/#using-terra-to-read-in-raster-data).
+
+
+
+
+
 
 #### Using `terra` to read in raster data
 
