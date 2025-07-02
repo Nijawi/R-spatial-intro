@@ -247,7 +247,7 @@ First, let's do a 'quick thematic map' using the 'qtm' function from `tmap`.
 
 ```{r}
 library(tmap)
-tmap_mode('plot')
+tmap_mode('view')
 qtm(elec, basemap = "Esri.WorldTopoMap")
 ```
 
