@@ -47,7 +47,6 @@ Install the following packages:
 
 `install.packages('sf', 'tidyverse', 'tmap', 'dplyr', 'readr', 'ggplot2', 'forcats', 'units', 'Polychrome')`
 
-
 **A quick note on mastering Rspatial**
 
 A good way to start getting used to a new R package is to read any [vignettes](https://r-pkgs.org/vignettes.html) that are available, and to read the documentation associated with functions that you'd like to use.
@@ -55,6 +54,7 @@ A good way to start getting used to a new R package is to read any [vignettes](h
 Just use the '?' function to get the documentation. As an example, let's ask for help with the base R function we used above: 'install.packages'.
 
 ```{r}
+#| eval: false
 ?install.packages
 ```
 
@@ -152,10 +152,6 @@ Packages for spatial data have been around since the release of R in the year 20
 7.  Make sure you save scripts in the nested 'scripts' folder
 8.  Save outputs with the pathfile 'outputs/...'
 
-When you're all done, your 'bird-analysis' folder should look like this inside.
-
-![Figure 3.](images/proj.png)
-
 I like this set-up because it keeps scripts, data and outputs nicely organised, and I can easily send the analysis folder to a collaborator and they'll be able to get started quickly by double-clicking the .Rproj file.
 
 But this is just my highly opinionated set-up - ultimately, do what works for you!
@@ -174,7 +170,7 @@ The first step of any data wrangling or analysis is usually getting the data int
 
 If you've used R before for wrangling non-spatial data, such as with the packages `dplyr` and `tidyr`, you're in luck - we can use them to wrangle our spatial data too!
 
-Our spatial data consists of echidna sightings from [ALA](https://bie.ala.org.au/species/https://biodiversity.org.au/afd/taxa/0d4c9c0c-51d3-44e0-a365-fe0f8b791c66), electorate data from [the AEC](https://www.aec.gov.au/electorates/gis/gis_datadownload.htm), and broad vegetation groups from [QSpatial](https://qldspatial.information.qld.gov.au/catalogue/custom/detail.page?fid={43A2CB31-9D83-4BB9-ACE7-05E7BD271FE3}). What type of spatial data do you suspect these will be (vector or raster)?
+Our spatial data consists of echidna sightings from [ALA](https://bie.ala.org.au/species/https://biodiversity.org.au/afd/taxa/0d4c9c0c-51d3-44e0-a365-fe0f8b791c66), electorate data from [the AEC](https://www.aec.gov.au/electorates/gis/gis_datadownload.htm), and broad vegetation groups from [QSpatial](https://qldspatial.information.qld.gov.au/catalogue/custom/detail.page?fid=%7B43A2CB31-9D83-4BB9-ACE7-05E7BD271FE3%7D). What type of spatial data do you suspect these will be (vector or raster)?
 
 #### Using `sf` to read in vector data
 
@@ -249,7 +245,7 @@ First, let's do a 'quick thematic map' using the 'qtm' function from `tmap`.
 
 ```{r}
 library(tmap)
-tmap_mode('view')
+tmap_mode('plot')
 qtm(elec, basemap = "Esri.WorldTopoMap")
 ```
 
@@ -286,7 +282,7 @@ echidna_tidy <- echidna_raw |> select('basisOfRecord',
                                  'coordinateUncertaintyInMeters',
                                  'vernacularName',
                                  'species')
-```                            
+```
 
 Okay, our data is tidied, let's turn this dataframe into a spatial dataframe with st_as_sf. You will notice that our csv had decimalLatitude and decimalLongitude, we can use these as our coordinates. The ALA uses WGS84 as its CRS, which has the EPSG shortcode 4326.
 
@@ -295,27 +291,21 @@ echidna_tidy <- echidna_tidy |>
 st_as_sf(coords=c("decimalLongitude","decimalLatitude"),crs=4326)
 ```
 
-Let's hone our points down to only have echidna sightings within our area of interest.
-We can use the 'st_intersection' function from `sf`. 
+Let's hone our points down to only have echidna sightings within our area of interest. We can use the 'st_intersection' function from `sf`.
 
 ```{r}
+#| error: true
 echidna <- st_intersection(echidna_tidy, dickson)
 ```
+
 Ah-ha! Our first error. Unfortunately, errors are very, very common when doing things in R. But the more errors you encounter, the better you'll get at trouble-shooting them. 80% of coding is googling error messages I reckon.
 
 To get good at trouble-shooting errors, read the error message and try to infer what it is telling you. Some error messages aren't so hard to guess the problem, but others are much more cryptic. That's when googling comes in handy. I've found that trying over and over again to decipher error messages has paid off; it's gotten easier over time, and I don't have to ask google as much.
 
 This error message tells us that the coordinate reference systems (crs's) of our echidna and elec data are not equal, i.e., are not the same. Our spatial data needs to be in the same projected crs to process and map together.
 
-With `sf` we can easily project our echidna data to be in the same crs as our elec data using the function st_transform. Notice we use the function st_crs to get and check the coordinate reference system of our electorate data.
+With `sf` we can easily project our echidna data to be in the same crs as our elec data using the function st_transform. Notice we use the function st_crs to get the coordinate reference system of our electorate data.
 
-```{r}
-st_crs(echidna_tidy)
-st_crs(dickson)
-st_crs(rbvg_raw)
-```
-
-It looks like our rbvg data is in the same CRS as our electorate data, we will just need to transform the echidna data before cropping.
 
 ```{r}
 st_crs(dickson)
@@ -332,7 +322,8 @@ Now let's do a quick interactive map of all data layers.
 qtm(dickson) + qtm(rbvg_crop, 'bvg1m') + qtm(echidna)
 ```
 
-We'll learn more about how to make a static, publication-quality map with `tmap` later.
+You can make a static, publication-quality map with `tmap` as well if you change the tmap_mode('view') to tmap_mode('plot'). You can find that in the original version of [this tutorial by Christina Buelow](https://r-spatial-intro.netlify.app/#making-a-publication-quality-map).
+
 
 For now you will notice that the colour of the rbvg looks a little off, and if you zoom in close enough, there are lines across some sections of the map. The first issue is flagged in the warning that qtm gave us, that we have too many variables to match the maximum for a fill colouring. The second is a rendering bug that occurs with interactive leaflet maps that have over 500 polygons.
 
@@ -352,7 +343,6 @@ veg_map <- qtm(rbvg, col=NULL, 'bvg1m', fill.scale = tm_scale_categorical(n.max 
 ```
 
 You will notice that it looks a bit blocky when zoomed out. This is caused by polygon simplification, which is not the case when you zoom in.
-
 
 #### Buffering, spatial joins, and intersections
 
@@ -387,11 +377,9 @@ To get a quick summary of our sightings, we can count up the number of unique ve
 ```{r}
 echidna_veg_sum <- echidna_veg |> 
   group_by(ID) |> # group by echidna sighting
-  summarise(veg_count = length(unique(bvg1m)), site_sum = sum(st_area(echidna_veg_sum))) # count the number of unique vegetation types
+  summarise(veg_count = length(unique(bvg1m))) # count the number of unique vegetation types
 head(echidna_veg_sum)
 ```
-
-
 
 If you want to visually verify that the the summarise above worked as expected, just do an intersection of the first echidna buffer (ID==1) with the vegetation data and map it. Based on the above, we expect to see 4 vegetation types.
 
@@ -403,7 +391,7 @@ qtm(site1_veg, 'bvg1m', basemap = "Esri.WorldTopoMap")
 
 Perfect!
 
-We can also use our spatial data to calculate the area of vegetation types that are found where our echidna sightings occur. 
+We can also use our spatial data to calculate the area of vegetation types that are found where our echidna sightings occur.
 
 ```{r}
 echidna_veg_sites <- st_intersection(echidna_buff, rbvg)
@@ -425,17 +413,16 @@ We can now take this data and visualise it as we please.
 library(ggplot2)
 library(units)
 
-echidna_sum |> 
+echidna_area |> 
   arrange(-site_sum) |> 
   ggplot(aes(x= bvg1m, y=site_sum)) +
   geom_col()
 ```
 
-We need to use the units library to work with square metres.
-We can then tidy the graph to better present the data.
+We need to use the units library to work with square metres. We can then tidy the graph to better present the data.
 
 ```{r}
-echidna_sum |> 
+echidna_area |> 
   arrange(-site_sum) |> 
   ggplot(aes(x= forcats::fct_reorder(bvg1m, desc(site_sum)), y=site_sum)) +
   geom_col() +
@@ -445,9 +432,7 @@ echidna_sum |>
          y = "Total Area")
 ```
 
-
 Now that you have learned to explore vector data in R, your next step is to learn to use raster data. You can find that in the original version of [this tutorial by Christina Buelow](https://r-spatial-intro.netlify.app/#using-terra-to-read-in-raster-data).
-
 
 ### Common problems in Rspatial
 
