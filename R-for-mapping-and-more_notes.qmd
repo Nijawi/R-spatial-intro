@@ -66,6 +66,8 @@ The help documentation will tell you what a function can be used for, what argum
 
 What is spatial data? Most broadly-speaking, data is spatial when it has coordinates, and therefore a coordinate reference system (see more on this below). Coordinates define the longitude (x) and latitude (y) of where data is located across the globe.
 
+[mapschool.io](https://mapschool.io/) is a fantastic resource for a simple explanation of many spatial concepts.
+
 #### Spatial data types
 
 There are three broad classes of spatial data that you may encounter.
@@ -246,16 +248,19 @@ My go-to is `tmap`. You can make interactive maps to explore your data very quic
 First, let's do a 'quick thematic map' using the 'qtm' function from `tmap`.
 
 ```{r}
+#| warning: false
 library(tmap)
 tmap_mode('view')
 qtm(elec, basemap = "Esri.WorldTopoMap")
 ```
+
 
 Looks good! Try clicking on when of the site locations and notice the pop-up windows. In other interactive mapping packages (e.g., `leaflet`) we need to write lots of extra code to get this kind of functionality. Here only 3 lines of code!!
 
 Today we're going to focus on the environment around the USC Moreton Bay Campus, so let's use some dplyr to filter for just this electorate: Dickson. This kind of boundary file is useful to have when you're honing down to a particular project area.
 
 ```{r}
+#| warning: false
 library(dplyr)
 dickson <- elec |> 
   filter(Elect_div == "Dickson")
@@ -266,6 +271,8 @@ dickson <- elec |>
 Let's read in some other site-relevant vector data and map it all together.
 
 ```{r}
+#| warning: false
+
 library(readr)
 echidna_raw <- read_csv('data/echidna.csv')
 rbvg_raw <- st_read('data/rbvg.gpkg')
@@ -297,7 +304,7 @@ Let's hone our points down to only have echidna sightings within our area of int
 
 ```{r}
 #| error: true
-echidna <- st_intersection(echidna_tidy, dickson)
+echidna <- st_intersection(echidna_tidy, dickson) 
 ```
 
 Ah-ha! Our first error. Unfortunately, errors are very, very common when doing things in R. But the more errors you encounter, the better you'll get at trouble-shooting them. 80% of coding is googling error messages I reckon.
@@ -310,13 +317,21 @@ With `sf` we can easily project our echidna data to be in the same crs as our el
 
 
 ```{r}
-st_crs(dickson)
 echidna_tidy <- st_transform(echidna_tidy, st_crs(dickson))
-rbvg <- st_transform(rbvg_raw, st_crs(dickson))
+rbvg_raw <- st_transform(rbvg_raw, st_crs(dickson))
+
 echidna <- st_intersection(echidna_tidy, dickson) |> 
+  select(names(echidna_tidy)) |> 
   mutate(ID = row_number()) # ID so we can more easily compare sites later
-rbvg_crop <- st_intersection(rbvg_raw, dickson)
+
+rbvg_crop <- st_intersection(rbvg_raw, dickson)|> 
+  select(names(rbvg_raw))
 ```
+
+You will often see warnings coming up in R. Unfortunately sometimes they are clear and meaningful, and other times they are concerning and confusing.
+In this case sf is just warning us that it would be incorrect to run an intersection of polygons that contain aggregate data, such as a population count, as the intersection result would erroneously contain the full population count of the parent polygon.
+
+We have also done some cleaning with the help of dplyr. When we run sf_intersection, it joins the values for both polygon layers. In this case we're just using the electorate to filter our data, and we just want to keep the echidna data. We use the select function to choose to keep only the original echidna variables.
 
 Now let's do a quick interactive map of all data layers.
 
@@ -324,33 +339,48 @@ Now let's do a quick interactive map of all data layers.
 qtm(dickson) + qtm(rbvg_crop, 'bvg1m') + qtm(echidna)
 ```
 
-You can make a static, publication-quality map with `tmap` as well if you change the tmap_mode('view') to tmap_mode('plot'). You can find that in the original version of [this tutorial by Christina Buelow](https://r-spatial-intro.netlify.app/#making-a-publication-quality-map).
+
+Okay, so we have some warnings, and you will notice that the colour of the rbvg looks a little off (and if you zoom in close enough, there are weird lines across some sections of the map!). 
+
+The first issue is flagged in the warning that qtm gave us, that we have too many variables to match the maximum for a fill colouring. The second is a rendering bug that occurs with interactive leaflet maps that have over 500 polygons.
+
+We can resolve the colour issue by using a custom colour palette for 36 colours using the `Polychrome` package. Realistically, we have too many categories, but this will do in a pinch.
+
+We can fix the rendering issue by merging some of the same polygons together. For our purposes, we don't need individual non-remnant patches You can combine many polygons into one polygon with the st_union function. However, we want to combine ours by categories. Fortunately dplyr and sf continue to work in harmony here. If we use group_by and summarize, it will use st_union by group!
 
 
-For now you will notice that the colour of the rbvg looks a little off, and if you zoom in close enough, there are lines across some sections of the map. The first issue is flagged in the warning that qtm gave us, that we have too many variables to match the maximum for a fill colouring. The second is a rendering bug that occurs with interactive leaflet maps that have over 500 polygons.
-
-We can fix this by merging some of the same polygons together. For our purposes, we don't need individual non-remnant patches You can combine many polygons into one polygon with the st_union function. However, we want to combine ours by categories. Fortunately dplyr and sf continue to work in harmony here. If we use group_by and summarize, it will use st_union by group!
-
-We can also resolve the colour issue by using a custom colour palette for 36 colours using the Polychrome package. Realistically, we have too many categories, but this will do in a pinch.
 
 ```{r}
+#| warning: false
+
 rbvg <- rbvg_crop |>
   group_by(bvg1m) |> 
   summarize() 
 
 library(Polychrome)
-P36 = unname(createPalette(36,  c("#ff0000", "#00ff00", "#0000ff")))
+P36 = unname(createPalette(36,  c("#ff0000", "#00ff00", "#0000ff"))) #unname is used to strip the colournames that Polychrome automatically adds
 
 veg_map <- qtm(rbvg, col=NULL, 'bvg1m', fill.scale = tm_scale_categorical(n.max = 36, values = P36))
+
+veg_map
 ```
 
-You will notice that it looks a bit blocky when zoomed out. This is caused by polygon simplification, which is not the case when you zoom in.
+
+We've assigned this map to veg_map so that we can more easily call the map later. You will notice that it looks a bit blocky when zoomed out. This is caused by polygon simplification, which is not the case when you zoom in.
+
+You can also make a static, publication-quality map with `tmap` as well if you change the tmap_mode('view') to tmap_mode('plot'). You can find that in the original version of [this tutorial by Christina Buelow](https://r-spatial-intro.netlify.app/#making-a-publication-quality-map).
+
+```{r}
+tmap_mode('plot')
+veg_map
+```
 
 #### Buffering, spatial joins, and intersections
 
 Perhaps we would like to count the number of different vegetation types within a 500m radius of each echidna sighting. First we'll create the buffers using `sf`s 'st_buffer' function.
 
 ```{r}
+tmap_mode('view')
 echidna_buff <- st_buffer(echidna, 500)
 veg_map + qtm(echidna_buff)
 ```
@@ -386,6 +416,7 @@ head(echidna_veg_sum)
 If you want to visually verify that the the summarise above worked as expected, just do an intersection of the first echidna buffer (ID==1) with the vegetation data and map it. Based on the above, we expect to see 4 vegetation types.
 
 ```{r}
+#| warning: false
 site1 <- filter(echidna_buff, ID == '1') 
 site1_veg <- st_intersection(site1, rbvg)
 qtm(site1_veg, 'bvg1m', basemap = "Esri.WorldTopoMap")
@@ -396,9 +427,10 @@ Perfect!
 We can also use our spatial data to calculate the area of vegetation types that are found where our echidna sightings occur.
 
 ```{r}
+#| warning: false
 echidna_veg_sites <- st_intersection(echidna_buff, rbvg)
 
-echidna_veg_sites$site_area <- st_area(echidna_veg_sites) #Take care of units
+echidna_veg_sites$site_area <- st_area(echidna_veg_sites) 
 
 echidna_area <- echidna_veg_sites |> 
   group_by(bvg1m) |> 
@@ -412,6 +444,7 @@ Here we have used some functions we previously explored to first cut out the int
 We can now take this data and visualise it as we please.
 
 ```{r}
+#| warning: false
 library(ggplot2)
 library(units)
 
