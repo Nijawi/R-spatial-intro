@@ -34,7 +34,7 @@ embed-resources: true
 3.  How to start a spatial project in R
 4.  How to wrangle spatial data in R
 5.  How to perform spatial operations in R
-6.  How to make a map in R
+6.  How to make a map in R [like this](https://rspatialintro.netlify.app/nice_map.html)
 7.  Common problems you might encounter in R spatial, and how to solve them
 
 #### Things you'll need
@@ -254,7 +254,6 @@ tmap_mode('view')
 qtm(elec, basemap = "Esri.WorldTopoMap")
 ```
 
-
 Looks good! Try clicking on when of the site locations and notice the pop-up windows. In other interactive mapping packages (e.g., `leaflet`) we need to write lots of extra code to get this kind of functionality. Here only 3 lines of code!!
 
 Today we're going to focus on the environment around the USC Moreton Bay Campus, so let's use some dplyr to filter for just this electorate: Dickson. This kind of boundary file is useful to have when you're honing down to a particular project area.
@@ -315,7 +314,6 @@ This error message tells us that the coordinate reference systems (crs's) of our
 
 With `sf` we can easily project our echidna data to be in the same crs as our elec data using the function st_transform. Notice we use the function st_crs to get the coordinate reference system of our electorate data.
 
-
 ```{r}
 echidna_tidy <- st_transform(echidna_tidy, st_crs(dickson))
 rbvg_raw <- st_transform(rbvg_raw, st_crs(dickson))
@@ -328,8 +326,7 @@ rbvg_crop <- st_intersection(rbvg_raw, dickson)|>
   select(names(rbvg_raw))
 ```
 
-You will often see warnings coming up in R. Unfortunately sometimes they are clear and meaningful, and other times they are concerning and confusing.
-In this case sf is just warning us that it would be incorrect to run an intersection of polygons that contain aggregate data, such as a population count, as the intersection result would erroneously contain the full population count of the parent polygon.
+You will often see warnings coming up in R. Unfortunately sometimes they are clear and meaningful, and other times they are concerning and confusing. In this case sf is just warning us that it would be incorrect to run an intersection of polygons that contain aggregate data, such as a population count, as the intersection result would erroneously contain the full population count of the parent polygon.
 
 We have also done some cleaning with the help of dplyr. When we run sf_intersection, it joins the values for both polygon layers. In this case we're just using the electorate to filter our data, and we just want to keep the echidna data. We use the select function to choose to keep only the original echidna variables.
 
@@ -339,16 +336,13 @@ Now let's do a quick interactive map of all data layers.
 qtm(dickson) + qtm(rbvg_crop, 'bvg1m') + qtm(echidna)
 ```
 
-
-Okay, so we have some warnings, and you will notice that the colour of the rbvg looks a little off (and if you zoom in close enough, there are weird lines across some sections of the map!). 
+Okay, so we have some warnings, and you will notice that the colour of the rbvg looks a little off (and if you zoom in close enough, there are weird lines across some sections of the map!).
 
 The first issue is flagged in the warning that qtm gave us, that we have too many variables to match the maximum for a fill colouring. The second is a rendering bug that occurs with interactive leaflet maps that have over 500 polygons.
 
 We can resolve the colour issue by using a custom colour palette for 36 colours using the `Polychrome` package. Realistically, we have too many categories, but this will do in a pinch.
 
 We can fix the rendering issue by merging some of the same polygons together. For our purposes, we don't need individual non-remnant patches You can combine many polygons into one polygon with the st_union function. However, we want to combine ours by categories. Fortunately dplyr and sf continue to work in harmony here. If we use group_by and summarize, it will use st_union by group!
-
-
 
 ```{r}
 #| warning: false
@@ -364,7 +358,6 @@ veg_map <- qtm(rbvg, col=NULL, 'bvg1m', fill.scale = tm_scale_categorical(n.max 
 
 veg_map
 ```
-
 
 We've assigned this map to veg_map so that we can more easily call the map later. You will notice that it looks a bit blocky when zoomed out. This is caused by polygon simplification, which is not the case when you zoom in.
 
