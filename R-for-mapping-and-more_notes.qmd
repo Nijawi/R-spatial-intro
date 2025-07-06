@@ -45,7 +45,7 @@ Install [R](https://www.r-project.org/) and [RStudio](https://www.rstudio.com/pr
 
 Install the following packages:
 
-`install.packages('sf', 'tidyverse', 'tmap', 'dplyr', 'readr', 'ggplot2', 'forcats', 'units', 'Polychrome')`
+`install.packages(c('sf', 'tidyverse', 'tmap', 'units', 'Polychrome'))`
 
 [Download the data for this session](https://filesender.aarnet.edu.au/?s=download&token=1b3c37b1-cbeb-4818-b0ed-faeb529a6d26).
 
@@ -183,6 +183,7 @@ First we need to load the package using the `library` function. You can think of
 ```{r}
 #| echo: true
 #| output: false
+library(tidyverse)
 library(sf)
 ```
 
@@ -260,9 +261,8 @@ Today we're going to focus on the environment around the USC Moreton Bay Campus,
 
 ```{r}
 #| warning: false
-library(dplyr)
 dickson <- elec |> 
-  filter(Elect_div == "Dickson")
+  dplyr::filter(Elect_div == "Dickson")
 ```
 
 **Note** You can use a *pipe* (`|>`) to link a dataframe to multiple functions (in this case just to filter). Piping can make your code easier to read, and more efficient to write by taking up less space.
@@ -438,7 +438,6 @@ We can now take this data and visualise it as we please.
 
 ```{r}
 #| warning: false
-library(ggplot2)
 library(units)
 
 echidna_area |> 
